@@ -31,7 +31,7 @@ jobs:
         run: go build -o go-idle-empire ./cmd
 
       - name: Docker build
-        run: docker build -t yourdockerhub/go-idle-empire:latest .
+        run: docker build -t tercel340/go-idle-empire:latest .
 
       - name: Docker push
         env:
@@ -39,7 +39,7 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
           echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-          docker push yourdockerhub/go-idle-empire:latest
+          docker push tercel340/go-idle-empire:latest
 
   deploy:
     needs: build-test
