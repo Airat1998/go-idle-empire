@@ -3,6 +3,8 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*'
   pull_request:
 
 jobs:
@@ -30,16 +32,32 @@ jobs:
       - name: Build binary
         run: go build -o go-idle-empire ./cmd
 
-      - name: Docker build
-        run: docker build -t tercel340/go-idle-empire:latest .
+      - name: Set environment variables
+        id: vars
+        run: |
+          echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
+          echo "BRANCH=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
+          echo "TAG=$(echo ${GITHUB_REF#refs/tags/})" >> $GITHUB_OUTPUT
 
-      - name: Docker push
+      - name: Docker build
+        run: |
+          docker build -t tercel340/go-idle-empire:latest \
+                       -t tercel340/go-idle-empire:${{ steps.vars.outputs.BRANCH }}-${{ steps.vars.outputs.SHORT_SHA }} .
+
+      - name: Docker login & push
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
           echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
           docker push tercel340/go-idle-empire:latest
+          docker push tercel340/go-idle-empire:${{ steps.vars.outputs.BRANCH }}-${{ steps.vars.outputs.SHORT_SHA }}
+
+      - name: Docker push version tag if exists
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          docker tag tercel340/go-idle-empire:latest tercel340/go-idle-empire:${{ steps.vars.outputs.TAG }}
+          docker push tercel340/go-idle-empire:${{ steps.vars.outputs.TAG }}
 
   deploy:
     needs: build-test
@@ -57,4 +75,4 @@ jobs:
             docker pull tercel340/go-idle-empire:latest
             docker stop idle-game || true
             docker rm idle-game || true
-            docker run -d --name idle-game -p 8080:8080 tercel340/go-idle-empire:latest
+            docker run -d --restart unless-stopped --name idle-game -p 8080:8080 tercel340/go-idle-empire:latest
