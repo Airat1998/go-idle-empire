@@ -1,0 +1,60 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Lint
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build binary
+        run: go build -o go-idle-empire ./cmd
+
+      - name: Docker build
+        run: docker build -t yourdockerhub/go-idle-empire:latest .
+
+      - name: Docker push
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+          docker push yourdockerhub/go-idle-empire:latest
+
+  deploy:
+    needs: build-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy to Staging via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_KEY }}
+          script: |
+            docker pull yourdockerhub/go-idle-empire:latest
+            docker stop idle-game || true
+            docker rm idle-game || true
+            docker run -d --name idle-game -p 8080:8080 yourdockerhub/go-idle-empire:latest
