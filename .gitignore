@@ -1,0 +1,4 @@
+certbot/conf/archive/
+certbot/conf/renewal/
+certbot/conf/live/
+certbot/conf/accounts/
