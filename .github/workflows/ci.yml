@@ -54,7 +54,7 @@ jobs:
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGING_KEY }}
           script: |
-            docker pull yourdockerhub/go-idle-empire:latest
+            docker pull tercel340/go-idle-empire:latest
             docker stop idle-game || true
             docker rm idle-game || true
-            docker run -d --name idle-game -p 8080:8080 yourdockerhub/go-idle-empire:latest
+            docker run -d --name idle-game -p 8080:8080 tercel340/go-idle-empire:latest
